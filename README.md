@@ -133,80 +133,124 @@ results = search_orc_literature(
 
 ### Mathematical Background
 
-**Ollivier–Ricci Curvature** (ORC) of an edge `(u, v)` is defined as:
-
-$$\kappa(u, v) = 1 - \frac{W_1(\mu_u, \mu_v)}{d(u, v)}$$
-
-where `μ_u` is a probability measure at `u`, `d(u, v)` is the shortest-path distance, and `W_1` is the 1-Wasserstein (earth mover) distance between the two measures.
+The **Ollivier–Ricci curvature** (ORC) of an edge $(u,v)$ is defined by
+$$
+\kappa(u,v)=1-\frac{W_1(\mu_u,\mu_v)}{d(u,v)},
+$$
+where $\mu_u$ is a probability measure centered at $u$, $d(u,v)$ is the shortest-path distance, and $W_1$ is the $1$-Wasserstein (earth mover's) distance between the two measures.
 
 ---
 
-### Step 1 — k-Hop Lazy Random Walk Measure
+### Step 1. $k$-Hop Lazy Random Walk Measure
 
-For each node `x`, define the **k-hop lazy random walk measure** as:
-
-$$\mu_x^{(k)} = \alpha \cdot \delta_x + (1 - \alpha) \cdot P^k(x, \cdot)$$
-
+For each node $x$, define the **$k$-hop lazy random walk measure** by
+$$
+\mu_x^{(k)}=\alpha\,\delta_x+(1-\alpha)\,P^k(x,\cdot),
+$$
 where:
 
-- `α ∈ [0, 1]` is the **lazy parameter**
-- `δ_x` is the Dirac delta at `x`
-- `P` is the row-stochastic transition matrix of the graph: `P[x, y] = 1 / deg(x)` if `(x, y)` is an edge
-- `P^k` is the `k`-th matrix power, giving the k-step transition probabilities
+- $\alpha\in[0,1]$ is the lazy parameter;
+- $\delta_x$ is the Dirac measure at $x$;
+- $P$ is the row-stochastic transition matrix of the graph, given by
+  $$
+  P(x,y)=
+  \begin{cases}
+  \dfrac{1}{\deg(x)}, & \text{if } (x,y)\in E,\\[1mm]
+  0, & \text{otherwise};
+  \end{cases}
+  $$
+- $P^k$ denotes the $k$-step transition probabilities.
 
-The support of `μ_x^{(k)}` is exactly the **k-hop neighborhood** of `x`.
-
----
-
-### Step 2 — Truncated All-Pairs Shortest Paths
-
-The maximum distance between any two points in `supp(μ_u^{(k)})` and `supp(μ_v^{(k)})` is bounded by:
-
-$$2k + 1 \quad \text{(when } u \text{ and } v \text{ are adjacent)}$$
-
-Hence we precompute the distance matrix only up to cutoff `2k + 1`:
-
-$$D[i, j] = \begin{cases} \text{dist}(x_i, x_j) & \text{if } \text{dist}(x_i, x_j) \leq 2k + 1 \\ \infty & \text{otherwise} \end{cases}$$
-
-This avoids the `O(n³)` cost of full APSP.
+The support of $\mu_x^{(k)}$ is contained in the $k$-hop neighborhood of $x$.
 
 ---
 
-### Step 3 — Residual-Shell Upper Bound on `W₁(μ_u, μ_v)`
+### Step 2. Truncated All-Pairs Shortest Paths
 
-For an edge `(u, v)`, let `μ = μ_u^{(k)}` and `ν = μ_v^{(k)}`. We compute an upper bound `W̄₁(μ, ν)` as follows.
-
-**Bucket construction.** Group all pairs `(x, y)` with `x ∈ supp(μ)`, `y ∈ supp(ν)` into `l + 1` buckets by distance:
-
-$$\text{Bucket } r = \{(x, y) : D[x, y] = r\}, \quad r = 0, 1, \dots, l$$
-
-**Greedy matching.** Initialize `a[x] = μ[x]`, `b[y] = ν[y]`. For each bucket `r` from 0 to `l`:
-
-$$\delta_r = \min(a[x], b[y]) \quad \text{for each } (x, y) \in \text{Bucket } r$$
-$$a[x] \leftarrow a[x] - \delta_r, \quad b[y] \leftarrow b[y] - \delta_r$$
-$$m_r = \sum_{(x,y)\in\text{Bucket } r} \delta_r$$
-
-**Residual shell.** After all buckets are processed, let:
-
-$$R_l = \sum_x a[x] \quad \text{(remaining unmatched mass)}$$
-
-If `R_l > 0`, compute the residual distance:
-
-$$\bar{r} = \max_{\substack{x : a[x] > 0 \\ y : b[y] > 0}} D[x, y] \quad \text{("local-max" mode)}$$
-
-**Upper bound:**
-
-$$\bar{W}_1(\mu, \nu) = \sum_{r=0}^{l} r \cdot m_r + \bar{r} \cdot R_l$$
+When $(u,v)$ is an edge, the maximum distance between any two points in $\operatorname{supp}(\mu_u^{(k)})$ and $\operatorname{supp}(\mu_v^{(k)})$ is bounded by
+$$
+2k+1.
+$$
+Hence, we precompute the distance matrix only up to the cutoff $2k+1$:
+$$
+D[i,j]=
+\begin{cases}
+\operatorname{dist}(x_i,x_j), & \text{if } \operatorname{dist}(x_i,x_j)\le 2k+1,\\[1mm]
+\infty, & \text{otherwise}.
+\end{cases}
+$$
+This avoids the cost of computing the full all-pairs shortest-path matrix.
 
 ---
 
-### Step 4 — Curvature Lower Bound
+### Step 3. Residual-Shell Upper Bound on $W_1(\mu_u^{(k)},\mu_v^{(k)})$
 
-The ORC lower bound for edge `(u, v)` is:
+For an edge $(u,v)$, let
+$$
+\mu=\mu_u^{(k)}, \qquad \nu=\mu_v^{(k)}.
+$$
+We compute an upper bound $\overline{W}_1(\mu,\nu)$ as follows.
 
-$$\kappa_{lb}(u, v) = 1 - \frac{\bar{W}_1(\mu_u^{(k)}, \mu_v^{(k)})}{d(u, v)}$$
+#### Bucket construction
 
-Note that `d(u, v) = 1` for all edges in an unweighted graph.
+Group all pairs $(x,y)$ with $x\in\operatorname{supp}(\mu)$ and $y\in\operatorname{supp}(\nu)$ into $l+1$ buckets according to their distance:
+$$
+\mathcal{B}_r=\{(x,y): D[x,y]=r\}, \qquad r=0,1,\dots,l.
+$$
+
+#### Greedy matching
+
+Initialize the residual masses by
+$$
+a(x)=\mu(x), \qquad b(y)=\nu(y).
+$$
+For each bucket $r=0,1,\dots,l$, and for each $(x,y)\in\mathcal{B}_r$, define
+$$
+\delta(x,y)=\min\{a(x),\,b(y)\}.
+$$
+Then update
+$$
+a(x)\leftarrow a(x)-\delta(x,y), \qquad
+b(y)\leftarrow b(y)-\delta(x,y),
+$$
+and let
+$$
+m_r=\sum_{(x,y)\in\mathcal{B}_r}\delta(x,y).
+$$
+
+#### Residual shell
+
+After all buckets have been processed, define the remaining unmatched mass by
+$$
+R_l=\sum_x a(x).
+$$
+If $R_l>0$, define the residual distance in the local-max mode by
+$$
+\overline{r}
+=
+\max_{\substack{x:\,a(x)>0\\ y:\,b(y)>0}} D[x,y].
+$$
+
+#### Upper bound
+
+The resulting upper bound is
+$$
+\overline{W}_1(\mu,\nu)
+=
+\sum_{r=0}^l r\,m_r+\overline{r}\,R_l.
+$$
+
+---
+
+### Step 4. Curvature Lower Bound
+
+The resulting lower bound for the Ollivier--Ricci curvature of the edge $(u,v)$ is
+$$
+\kappa_{\mathrm{lb}}(u,v)
+=
+1-\frac{\overline{W}_1\bigl(\mu_u^{(k)},\mu_v^{(k)}\bigr)}{d(u,v)}.
+$$
+For an unweighted graph, $d(u,v)=1$ for every edge $(u,v)$.
 
 ---
 
@@ -270,7 +314,7 @@ return C
 ### Complexity Analysis
 
 | Step | Time | Space |
-|------|------|-------|
+|-----------------|-------------------------------------|------------|
 | Build `P^k` | `O(|V|³ log k)` via matrix power | `O(|V|²)` |
 | Truncated APSP | `O(|V| · cutoff · avg_degree)` | `O(|V|²)` |
 | Per-edge W1 bound | `O(|supp(μ)| · |supp(ν)|)` — parallelized over edges | `O(|V|²)` total |
