@@ -1,0 +1,10 @@
+# Core dependencies
+numpy>=1.21.0
+scipy>=1.7.0
+networkx>=3.0
+
+# Development dependencies
+pytest>=7.0.0
+pytest-cov>=3.0.0
+black>=22.0.0
+ruff>=0.1.0
