@@ -2,6 +2,8 @@
 
 **ORC (Ollivier–Ricci Curvature) Lower Bounds** via residual-shell Wasserstein-1 measures with k-hop lazy random walks.
 
+Project page: https://orc-bound.readthedocs.io
+
 ## Overview
 
 This package implements lower bound algorithms for Ollivier–Ricci Curvature (ORC) on graph edges. For each edge `(u, v)` in a graph, it computes:
