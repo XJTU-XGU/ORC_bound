@@ -3,6 +3,7 @@
 **ORC (Ollivier–Ricci Curvature) Lower Bounds** via residual-shell Wasserstein-1 measures with k-hop lazy random walks.
 
 Project page: https://orc-bound.readthedocs.io
+Paper: https://arxiv.org/abs/2604.12211
 
 ## Overview
 
