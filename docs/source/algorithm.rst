@@ -2,7 +2,9 @@ Algorithm Details
 ================
 
 This page describes the mathematical foundations and algorithmic steps
-implemented in ``orc_bound``.
+implemented in ``orc_bound``. Refer to paper [1] for details.
+
+[1] Xiang Gu, Huichun Zhang, Jian Sun, A Residual-Shell-Based Lower Bound for Ollivier-Ricci Curvature. https://arxiv.org/abs/2604.12211.
 
 ----
 
