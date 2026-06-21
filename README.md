@@ -1,4 +1,4 @@
-# ORC-Bound
+# orc_bound
 
 **ORC (Ollivier–Ricci Curvature) Lower Bounds** via residual-shell Wasserstein-1 measures with k-hop lazy random walks.
 
@@ -17,307 +17,253 @@ where `μ_u` is the k-hop lazy random walk measure at `u` and `W̄₁` is the re
 
 See the [Algorithm Details](https://orc-bound.readthedocs.io/en/latest/algorithm.html) for the full mathematical description.
 
-## Features
-
-- **Residual-shell Ricci curvature** with k-hop random walk support
-- **Multi-threaded edge processing** — leverage all CPU cores for large graphs
-- **Sparse matrix output** — memory efficient for large graphs
-- **Truncated APSP** — avoids full all-pairs shortest path computation
-
 ## Installation
 
-```bash
-pip install orc-bound
-```
-
-From source:
+Install from source:
 
 ```bash
-git clone https://github.com/XJTU-XGU/ORC_bound.git
-cd ORC_bound
-pip install .
+python -m pip install .
 ```
 
-For development:
+If you want an editable install for development:
 
 ```bash
-pip install -e ".[dev]"
+python -m pip install -e .
 ```
 
-For SerpAPI support:
+Requirements:
 
-```bash
-pip install -e ".[serpapi]"
-```
+- Python >= 3.7
+- NetworkX
+- NumPy
+- SciPy
+- a C++17 compiler
+- `pybind11`, installed automatically during build
 
-## Quick Start
+On Windows, install Visual Studio Build Tools with C++ support before installing.
+
+## Core Function
 
 ```python
-import networkx as nx
-from orc_bound import residual_shell_ricci_approximation
+from orc_bound import residual_shell_based_orc_bound
 
-G = nx.watts_strogatz_graph(200, 6, 0.2, seed=0)
-C = residual_shell_ricci_approximation(G, G.number_of_nodes(), k=2, n_jobs=4)
-print(f"Average curvature: {C.sum() / C.nnz:.4f}")
-```
-
-## Usage Examples
-
-### Basic Usage — All Default Parameters
-
-```python
-import networkx as nx
-from orc_bound import residual_shell_ricci_approximation
-
-G = nx.karate_club_graph()
-C = residual_shell_ricci_approximation(G, G.number_of_nodes())
-
-# Average curvature over all edges
-print(f"Average: {C.sum() / C.nnz:.4f}")
-
-# All edge curvatures
-for u, v in G.edges():
-    print(f"Edge ({u}, {v}): {C[u, v]:.4f}")
-```
-
-### Choosing k — Number of Random Walk Steps
-
-The parameter `k` controls how "global" the random walk measure is.
-Larger `k` spreads mass further from the source node.
-
-```python
-# k=1: local measure (neighbors only)
-C1 = residual_shell_ricci_approximation(G, n, k=1)
-
-# k=5: semi-global measure
-C5 = residual_shell_ricci_approximation(G, n, k=5)
-
-# k=20: near-uniform measure
-C20 = residual_shell_ricci_approximation(G, n, k=20)
-```
-
-### Lazy Mixing Parameter alpha
-
-The `alpha_lazy` parameter controls the weight of the Dirac delta at the source node.
-Higher alpha keeps more mass locally.
-
-```python
-# alpha=0: pure random walk (mass spreads fully)
-C0 = residual_shell_ricci_approximation(G, n, k=3, alpha_lazy=0.0)
-
-# alpha=0.5: balanced
-C5 = residual_shell_ricci_approximation(G, n, k=3, alpha_lazy=0.5)
-
-# alpha=1: trivial delta measure (kappa = 0 for all edges)
-C1 = residual_shell_ricci_approximation(G, n, k=3, alpha_lazy=1.0)
-```
-
-### Multi-Threaded Parallel Computation
-
-The most expensive step — computing curvature for each edge — is fully parallelizable.
-Use `n_jobs` to control the number of worker threads.
-
-```python
-# Use all available CPU cores (default)
-C = residual_shell_ricci_approximation(G, n, k=10)
-
-# Use exactly 8 threads
-C = residual_shell_ricci_approximation(G, n, k=10, n_jobs=8)
-
-# Use all but one core
-C = residual_shell_ricci_approximation(G, n, k=10, n_jobs=-1)
-
-# Sequential (single-threaded)
-C = residual_shell_ricci_approximation(G, n, k=10, n_jobs=1)
-```
-
-### Custom Shell Radius l
-
-Control how many distance buckets are used in the residual-shell matching.
-
-```python
-# Only bucket 0 (distance 0): fastest, weakest bound
-C = residual_shell_ricci_approximation(G, n, k=3, l_shell=0)
-
-# Buckets 0-3: good balance of speed and accuracy
-C = residual_shell_ricci_approximation(G, n, k=3, l_shell=3)
-
-# Buckets 0-10: more accurate but slower
-C = residual_shell_ricci_approximation(G, n, k=3, l_shell=10)
-```
-
-### Build Custom Measures and Distance Matrices
-
-For fine-grained control, use the core functions directly.
-
-```python
-import networkx as nx
-from orc_bound import (
-    build_lazy_measures_k,
-    all_pairs_shortest_path_matrix_cutoff,
-    residual_shell_upper_bound,
-)
-
-G = nx.path_graph(20)
-n = G.number_of_nodes()
-
-# Build k-hop measures
-mu = build_lazy_measures_k(G, alpha_lazy=0.0, k=3)
-
-# Precompute distance matrix (cutoff = 2*k + 1)
-cutoff = 2 * 3 + 1
-nodes, idx, D = all_pairs_shortest_path_matrix_cutoff(G, cutoff=cutoff)
-
-# Compute W1 upper bound for a specific edge
-ub, m_r, Rl, rbar = residual_shell_upper_bound(
-    mu[0], mu[1], D, idx,
-    l=3,
+result = residual_shell_based_orc_bound(
+    graph,
+    k_hop=1,
+    alpha_lazy=0.4,
+    l_shell=2,
     rbar_mode="local-max",
     tol=1e-12,
-)
-print(f"W1 upper bound: {ub:.4f}")
-print(f"Mass per bucket: {m_r}")
-print(f"Residual mass: {Rl:.4f}, residual distance: {rbar:.1f}")
-```
-
-### Interpreting the Result Matrix
-
-The return value is a ``scipy.sparse.csr_matrix``. Non-zero entries correspond to graph edges.
-
-```python
-import networkx as nx
-from orc_bound import residual_shell_ricci_approximation
-from scipy.sparse import csr_matrix
-
-G = nx.watts_strogatz_graph(80, 6, 0.2, seed=0)
-C = residual_shell_ricci_approximation(G, G.number_of_nodes(), k=2)
-
-# Basic statistics
-print(f"Shape: {C.shape}")           # (80, 80)
-print(f"Non-zeros: {C.nnz}")        # equals number of edges
-print(f"Average: {C.sum()/C.nnz:.4f}")
-print(f"Min: {C.data.min():.4f}")
-print(f"Max: {C.data.max():.4f}")
-
-# Get all non-zero entries
-print("\nAll edge curvatures:")
-for i in range(C.nnz):
-    u, v = C.row[i], C.col[i]
-    kappa = C.data[i]
-    print(f"  ({u}, {v}): {kappa:.4f}")
-
-# Extract as dense array
-dense = C.toarray()
-```
-
-### Different Graph Types
-
-```python
-import networkx as nx
-from orc_bound import residual_shell_ricci_approximation
-
-# Small-world graph (Watts-Strogatz)
-G_sw = nx.watts_strogatz_graph(200, 8, 0.1, seed=0)
-C_sw = residual_shell_ricci_approximation(G_sw, G_sw.number_of_nodes(), k=3)
-print(f"Watts-Strogatz avg: {C_sw.sum()/C_sw.nnz:.4f}")
-
-# Scale-free graph (Barabási-Albert)
-G_sf = nx.barabasi_albert_graph(200, 3, seed=0)
-C_sf = residual_shell_ricci_approximation(G_sf, G_sf.number_of_nodes(), k=3)
-print(f"Barabási-Albert avg: {C_sf.sum()/C_sf.nnz:.4f}")
-
-# Regular lattice
-G_lat = nx.grid_2d_graph(10, 10)
-G_lat = nx.convert_node_labels_to_integers(G_lat)
-C_lat = residual_shell_ricci_approximation(G_lat, G_lat.number_of_nodes(), k=2)
-print(f"Lattice avg: {C_lat.sum()/C_lat.nnz:.4f}")
-
-# Erdős–Rényi random graph
-G_er = nx.erdos_renyi_graph(200, 0.05, seed=0)
-C_er = residual_shell_ricci_approximation(G_er, G_er.number_of_nodes(), k=3)
-print(f"Erdős–Rényi avg: {C_er.sum()/C_er.nnz:.4f}")
-```
-
-## API Reference
-
-### `residual_shell_ricci_approximation`
-
-```python
-def residual_shell_ricci_approximation(
-    graph: nx.Graph,
-    num_nodes: int,
-    k: int = 1,
-    alpha_lazy: float = 0.0,
-    l_shell: int = 3,
-    rbar_mode: str = "local-max",
-    tol: float = 1e-12,
-    symmetric: bool = False,
-    n_jobs: int | None = None,
-) -> csr_matrix:
-```
-
-| Parameter     | Type           | Default  | Description                                           |
-|---------------|----------------|---------- |-------------------------------------------------------|
-| `graph`       | `nx.Graph`     | —         | Input graph                                           |
-| `num_nodes`   | `int`          | —         | Number of nodes (must match graph)                    |
-| `k`           | `int`          | `1`       | Number of random walk steps (k-hop neighborhood)      |
-| `alpha_lazy`  | `float`        | `0.0`     | Lazy mixing parameter [0, 1]                          |
-| `l_shell`     | `int`          | `3`       | Maximum shell distance for bucket matching            |
-| `rbar_mode`   | `str`          | `"local-max"` | Residual distance estimation method              |
-| `tol`         | `float`        | `1e-12`   | Numerical tolerance for mass pruning                  |
-| `symmetric`   | `bool`         | `False`   | Whether to populate both (u,v) and (v,u) entries       |
-| `n_jobs`      | `int \| None`  | `None`    | Number of parallel workers (None=all cores)           |
-
-### Core Functions
-
-- `build_lazy_measures_k(G, alpha_lazy, k)` — Build k-hop lazy random walk measures
-- `all_pairs_shortest_path_matrix_cutoff(G, cutoff)` — Truncated APSP matrix
-- `residual_shell_upper_bound(mu_x, mu_y, D, idx, l, ...)` — W1 upper bound
-
-## Multi-Threading
-
-The most expensive step — computing curvature for each edge — is fully parallelizable because each edge's computation is independent.
-
-```python
-# Use all CPU cores (default)
-C = residual_shell_ricci_approximation(G, n, k=10)
-
-# Use exactly 8 workers
-C = residual_shell_ricci_approximation(G, n, k=10, n_jobs=8)
-
-# Use all but one core
-C = residual_shell_ricci_approximation(G, n, k=10, n_jobs=-1)
-```
-
-### Threading vs Multiprocessing
-
-The algorithm is **memory-bandwidth bound** (dominated by numpy array operations on the precomputed distance matrix), not CPU-bound. Threading avoids the GIL for numpy operations and sidesteps the serialization overhead of multiprocessing, making `ThreadPoolExecutor` the natural choice.
-
-## Web Search via SerpAPI
-
-The package includes a utility for fetching related literature:
-
-```python
-from orc_bound.utils.search import search_orc_literature
-
-# Search for ORC-related papers
-results = search_orc_literature(
-    query="Ollivier Ricci curvature graph networks",
-    num_results=10,
-    serpapi_key="your-serpapi-key",
+    measure_tol=1e-15,
+    weight_attr="weight",
+    num_threads=0,
+    progress_interval=0,
+    distance_cutoff="auto",
+    nodes=None,
+    edges=None,
 )
 ```
 
-## Algorithm Details
+### Parameters
 
-See the [Algorithm Details page](https://orc-bound.readthedocs.io/en/latest/algorithm.html) for the full mathematical description including:
+| Parameter | Default | Description |
+| --- | --- | --- |
+| `graph` | required | A NetworkX graph, usually `nx.Graph()`. Node labels are not required to be consecutive integers; they can be integers, strings, or any hashable Python objects. The function internally converts nodes to contiguous integer indices. Edge attributes are optional. |
+| `k_hop` | `1` | Hop count of the local measure. The measure is `alpha_lazy * delta_x + (1-alpha_lazy) * P^k[x, :]`, where `P` is the weighted transition matrix and `k = k_hop`. |
+| `alpha_lazy` | `0.4` | Lazy mass kept on the center node. Must be in `[0, 1]`. |
+| `l_shell` | `2` | Number of distance shells handled explicitly in the residual-shell bound. Larger values can give a tighter bound but cost more time. |
+| `rbar_mode` | `"local-max"` | How to bound remaining residual mass. Use `"local-max"` normally. `"global-diam"` uses the graph diameter from the distance matrix. |
+| `tol` | `1e-12` | Numerical tolerance used by the C++ kernel. |
+| `measure_tol` | `1e-15` | Tiny probability masses less than or equal to this value are dropped when building sparse measures. |
+| `weight_attr` | `"weight"` | Name of the edge attribute used as transition weight. The name is not fixed. If your graph stores weights under another key, pass that key here, for example `weight_attr="similarity"` or `weight_attr="capacity"`. Missing attributes are treated as weight `1.0`, so an unweighted NetworkX graph works directly. Weights only affect the local random-walk measures; shortest-path transport distances are still unweighted hop distances. Negative weights are not allowed. Zero-weight edges remain in the graph but receive no transition probability mass. |
+| `num_threads` | `0` | Number of OpenMP threads. `0` uses the OpenMP default. |
+| `progress_interval` | `0` | If positive, print progress every N computed edges. Useful for large graphs. |
+| `distance_cutoff` | `"auto"` | Shortest-path cutoff. `"auto"` uses `2*k_hop + 1`; `None` computes full all-pairs distances; an integer uses that cutoff. |
+| `nodes` | `None` | Optional node order. Use this when you need fixed node indexing. |
+| `edges` | `None` | Optional edge list to compute. If omitted, all graph edges are used. |
 
-- k-Hop lazy random walk measure definition
-- Residual-shell W1 upper bound derivation
-- Full pseudocode
-- Complexity analysis
-- Parameter guide
+### Graph Weights
 
-## License
+The edge weight key is configurable. The default is the common NetworkX
+convention `weight`:
 
-MIT License
+```python
+G.add_edge("u", "v", weight=2.0)
+result = residual_shell_based_orc_bound(G)
+```
+
+If your graph uses another edge attribute name, pass it through `weight_attr`:
+
+```python
+G.add_edge("u", "v", similarity=2.0)
+result = residual_shell_based_orc_bound(G, weight_attr="similarity")
+```
+
+If the selected attribute is missing on an edge, that edge is treated as weight
+`1.0`. Therefore a normal unweighted NetworkX graph can be used directly.
+
+Weights do not change the ground distance used by transport. The ground
+distance is always the unweighted graph hop distance. Weights only change the
+transition probabilities used to build the local measures.
+
+### Return Values
+
+The function returns a dictionary. The most useful fields are:
+
+| Field | Description |
+| --- | --- |
+| `curvatures` | NumPy array of curvature values, one per computed edge. |
+| `w1_upper_bounds` | NumPy array of residual-shell W1 upper bounds. |
+| `curvature_matrix` | Symmetric SciPy sparse matrix storing curvature values on computed edges. |
+| `edge_indices` | Integer edge index array of shape `(num_edges, 2)`. |
+| `nodes` | Node order used by the computation. |
+| `node_index` | Mapping from original node labels to integer indices. |
+| `distances` | Dense hop-distance matrix used by residual-shell. |
+| `distance_cutoff` | Actual shortest-path cutoff used. |
+| `elapsed_seconds` | C++ kernel time. |
+| `num_threads` | Actual thread count used by the C++ kernel. |
+
+### Extracting Edge Curvature
+
+`result["curvatures"]` is ordered in the same order as the computed edge list.
+If you do not pass `edges`, the order is `list(graph.edges())`.
+
+```python
+edges = list(G.edges())
+result = residual_shell_based_orc_bound(G)
+
+edge_to_curvature = {
+    edge: curvature
+    for edge, curvature in zip(edges, result["curvatures"])
+}
+
+print(edge_to_curvature[(0, 1)])
+```
+
+For an undirected graph, NetworkX may store the same edge as `(u, v)` while you
+query `(v, u)`. A simple robust lookup is:
+
+```python
+def get_edge_curvature(edge_to_curvature, u, v):
+    if (u, v) in edge_to_curvature:
+        return edge_to_curvature[(u, v)]
+    return edge_to_curvature[(v, u)]
+
+print(get_edge_curvature(edge_to_curvature, 1, 0))
+```
+
+If you pass a custom edge list, use that same list when mapping results:
+
+```python
+target_edges = [(0, 1), (2, 3)]
+result = residual_shell_based_orc_bound(G, edges=target_edges)
+
+edge_to_curvature = dict(zip(target_edges, result["curvatures"]))
+print(edge_to_curvature[(0, 1)])
+```
+
+## Minimal Example
+
+```python
+import networkx as nx
+from orc_bound import residual_shell_based_orc_bound
+
+G = nx.Graph()
+G.add_edge(0, 1, weight=2.0)
+G.add_edge(1, 2, weight=1.0)
+G.add_edge(2, 3, weight=3.0)
+G.add_edge(0, 3, weight=1.0)
+
+edges = list(G.edges())
+result = residual_shell_based_orc_bound(
+    G,
+    k_hop=1,
+    alpha_lazy=0.4,
+    l_shell=2,
+    num_threads=4,
+    progress_interval=1000,
+)
+
+print(result["curvatures"])
+print(result["w1_upper_bounds"])
+
+edge_to_curvature = dict(zip(edges, result["curvatures"]))
+print("curvature(0, 1) =", edge_to_curvature[(0, 1)])
+```
+
+## Examples on Real-World Networks
+
+Download Amazon or Facebook [data](https://github.com/CampanulaBells/HUGE-GAD/tree/main/datasets).
+The code below assumes the data file is available at `datasets/Facebook.mat`.
+For unweighted graph, run
+```python
+import networkx as nx
+from scipy.io import loadmat
+from orc_bound import residual_shell_based_orc_bound
+
+data = loadmat("datasets/Facebook.mat")
+A = data["Network"].maximum(data["Network"].T)
+A.setdiag(0)
+A.eliminate_zeros()
+
+G = nx.from_scipy_sparse_array(A, create_using=nx.Graph)
+edges = list(G.edges())
+
+result = residual_shell_based_orc_bound(
+    G,
+    k_hop=1,
+    l_shell=2,
+    num_threads=8,
+    progress_interval=5000,
+)
+
+edge_to_curvature = dict(zip(edges, result["curvatures"]))
+print("number of edges:", len(edges))
+print("curvature of first edge:", edge_to_curvature[edges[0]])
+```
+
+For weighted graph, first construct weight, and then apply the algorithm.
+```python
+import networkx as nx
+from scipy.io import loadmat
+from orc_bound import residual_shell_based_orc_bound
+
+data = loadmat("datasets/Facebook.mat")
+A = data["Network"].maximum(data["Network"].T)
+X = data["Attributes"].tocsr()
+A.setdiag(0)
+A.eliminate_zeros()
+
+G = nx.from_scipy_sparse_array(A, create_using=nx.Graph)
+for u, v in G.edges():
+    xu, xv = X.getrow(u), X.getrow(v)
+    denom = (xu.multiply(xu).sum() * xv.multiply(xv).sum()) ** 0.5
+    sim = float(xu.multiply(xv).sum() / denom) if denom > 0 else 0.0
+
+    # Example weight only: this is not fixed by the algorithm.
+    # Here we use 1 + cosine similarity between node attributes so that
+    # attribute-similar endpoints get larger random-walk transition weight.
+    # Users can replace this with any non-negative edge weight definition.
+    G[u][v]["feature_weight"] = 1.0 + sim
+
+edges = list(G.edges())
+result = residual_shell_based_orc_bound(
+    G,
+    k_hop=1,
+    l_shell=2,
+    weight_attr="feature_weight",
+    num_threads=8,
+    progress_interval=5000,
+)
+
+edge_to_curvature = dict(zip(edges, result["curvatures"]))
+print("number of edges:", len(edges))
+print("curvature of first edge:", edge_to_curvature[edges[0]])
+```
+
+
+
+More runnable examples are in the `examples/` directory:
+
+- `examples/basic_usage.py`
+- `examples/facebook_dataset_test.py`
