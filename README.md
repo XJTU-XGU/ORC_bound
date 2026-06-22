@@ -18,19 +18,6 @@ where `μ_u` is the k-hop lazy random walk measure at `u` and `W̄₁` is the re
 See the [Algorithm Details](https://orc-bound.readthedocs.io/en/latest/algorithm.html) for the full mathematical description.
 
 ## Installation
-
-Install from source:
-
-```bash
-python -m pip install .
-```
-
-If you want an editable install for development:
-
-```bash
-python -m pip install -e .
-```
-
 Requirements:
 
 - Python >= 3.7
@@ -40,7 +27,43 @@ Requirements:
 - a C++17 compiler
 - `pybind11`, installed automatically during build
 
-On Windows, install Visual Studio Build Tools with C++ support before installing.
+If pip cannot find a pre-built wheel for your platform or Python version, it
+will build `orc_bound` from source. In that case, you need a C++17 compiler and
+Python build tools.
+
+Windows:
+
+1. Install Visual Studio Build Tools from <https://visualstudio.microsoft.com/visual-cpp-build-tools/>.
+2. Select `Desktop development with C++`.
+3. Make sure MSVC and Windows SDK are installed.
+
+Then run:
+
+```powershell
+python -m pip install --upgrade pip setuptools wheel pybind11
+python -m pip install orc-bound
+```
+
+Linux, for example Ubuntu or Debian:
+
+```bash
+sudo apt update
+sudo apt install -y build-essential python3-dev
+python -m pip install --upgrade pip setuptools wheel pybind11
+python -m pip install orc-bound
+```
+
+macOS:
+
+```bash
+xcode-select --install
+python -m pip install --upgrade pip setuptools wheel pybind11
+python -m pip install orc-bound
+```
+
+macOS builds without OpenMP by default in the current setup, so it may run
+single-threaded unless you configure an OpenMP-capable compiler.
+
 
 ## Core Function
 
