@@ -1,4 +1,4 @@
-# orc_bound
+# A fast and Accurate ORC bound
 
 **ORC (Ollivier–Ricci Curvature) Lower Bounds** via residual-shell Wasserstein-1 measures with k-hop lazy random walks.
 
@@ -261,6 +261,7 @@ print("number of edges:", len(edges))
 print("curvature of first edge:", edge_to_curvature[edges[0]])
 ```
 
+On the Amazon dataset with 170,000+ edges, our bound runs in less than 1 minute on 8 threads. 
 
 
 More runnable examples are in the `examples/` directory:
