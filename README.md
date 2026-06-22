@@ -1,4 +1,4 @@
-# A fast and Accurate ORC bound
+# A Fast and Accurate ORC bound
 
 **ORC (Ollivier–Ricci Curvature) Lower Bounds** via residual-shell Wasserstein-1 measures with k-hop lazy random walks.
 
