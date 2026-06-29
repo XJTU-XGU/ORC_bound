@@ -32,7 +32,7 @@ with open("README.md", "r", encoding="utf-8") as readme_file:
 
 setup(
     name="orc_bound",
-    version="0.2.2",
+    version="0.2.1",
     description="C++/OpenMP accelerated Ollivier-Ricci curvature bounds for NetworkX graphs",
     long_description=long_description,
     long_description_content_type="text/markdown",
